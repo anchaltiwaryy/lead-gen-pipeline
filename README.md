@@ -260,6 +260,26 @@ FIT_SCORE_THRESHOLD=50
 
 ---
 
+## 📊 Dashboard
+
+A simple, no-build dashboard ships with the API. It shows the pipeline funnel, fit score spread, top sources, and a searchable leads table (click a row for the AI's fit reasoning, contact and links).
+
+![Dashboard](docs/dashboard.png)
+
+```bash
+# Run it on your real leads.db
+python api.py
+# then open http://localhost:8000
+
+# Or try it with fictional sample data (writes demo.db, never touches leads.db)
+python seed_demo.py
+python api.py --demo
+```
+
+It follows your system light/dark setting. For editing drafts, 1-click outreach and live pipeline logs, use the full Next.js control center in `dashboard/` (`cd dashboard && npm install && npm run dev`).
+
+---
+
 ## 🎮 Execution & CLI Commands
 
 ### Run Full Autonomous Pipeline

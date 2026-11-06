@@ -206,8 +206,9 @@ python auth_wellfound.py
 python sync_r2.py pull
 python sync_r2.py push
 
-# 4. Start Backend API & Pipeline Workers
+# 4. Start Backend API & Pipeline Workers (simple dashboard at http://localhost:8000)
 python api.py
+python api.py --demo   # same, on fictional data from `python seed_demo.py`
 
 # 5. Start Next.js Dashboard UI
 cd dashboard && npm run dev
