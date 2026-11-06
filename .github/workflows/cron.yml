@@ -1,0 +1,57 @@
+name: Autonomous Web Intelligence & Lead Engine
+
+on:
+  # Cron disabled for now. Uncomment to re-enable 12h automatic runs:
+  # schedule:
+  #   - cron: '0 0,12 * * *'
+  # Allows you to trigger the workflow manually from the GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # Required to push the updated database back to the repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # Install playwright browsers for scrapling
+          playwright install chromium
+
+      - name: Run Autonomous Pipeline
+        env:
+          # Pulling secrets from GitHub Repository Secrets
+          ACTIVE_PROFILE: gtm_devrel
+          YOUR_NAME: ${{ secrets.YOUR_NAME }}
+          YOUR_ONE_LINER: ${{ secrets.YOUR_ONE_LINER }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Apollo enrichment - Tier 1a: session cookie (10,000 reveals/year free)
+          # Get from: app.apollo.io -> DevTools -> Application -> Cookies -> _apollo_session
+          APOLLO_COOKIE: ${{ secrets.APOLLO_COOKIE }}
+          # Apollo enrichment - Tier 1b: REST API key (60 credits/month free)
+          APOLLO_API_KEY: ${{ secrets.APOLLO_API_KEY }}
+        run: |
+          python main.py
+
+      - name: Commit and Push Updated Leads Database
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add leads.db
+          # Only commit if leads.db actually changed
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: auto-update leads.db [skip ci]"
+          git push
