@@ -10,13 +10,14 @@ on:
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          # Required to push the updated database back to the repo
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,6 +31,12 @@ jobs:
           pip install -r requirements.txt
           # Install playwright browsers for scrapling
           playwright install chromium
+
+      # leads.db is git-ignored (no lead data in the repo), so state lives in
+      # Cloudflare R2. These steps are skipped when R2 secrets are not set.
+      - name: Pull Leads Database from R2
+        if: env.R2_ACCOUNT_ID != ''
+        run: python sync_r2.py pull
 
       - name: Run Autonomous Pipeline
         env:
@@ -47,11 +54,6 @@ jobs:
         run: |
           python main.py
 
-      - name: Commit and Push Updated Leads Database
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add leads.db
-          # Only commit if leads.db actually changed
-          git diff --quiet && git diff --staged --quiet || git commit -m "chore: auto-update leads.db [skip ci]"
-          git push
+      - name: Push Leads Database to R2
+        if: env.R2_ACCOUNT_ID != ''
+        run: python sync_r2.py push
