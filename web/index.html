@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lead Pipeline</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --hover: rgba(11, 11, 11, 0.04);
+    --series: #2a78d6;
+    --track: #cde2fb;
+    --empty-bar: #c3c2b7;
+    --critical: #d03b3b;
+    --good: #006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #f0efec;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --hover: rgba(255, 255, 255, 0.05);
+      --series: #3987e5;
+      --track: #184f95;
+      --empty-bar: #52514e;
+      --critical: #e66767;
+      --good: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --hover: rgba(255, 255, 255, 0.05);
+    --series: #3987e5;
+    --track: #184f95;
+    --empty-bar: #52514e;
+    --critical: #e66767;
+    --good: #0ca30c;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0; }
+  .sub { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: 1px; }
+  .status-dot.ok { background: var(--good); }
+  .status-dot.down { background: var(--critical); }
+
+  button, select, input {
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px;
+  }
+  button { cursor: pointer; }
+  button:hover { background: var(--hover); }
+  :focus-visible { outline: 2px solid var(--series); outline-offset: 1px; }
+
+  .banner { display: none; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); margin-bottom: 16px; color: var(--ink-2); }
+  .banner.show { display: block; }
+  .banner code { color: var(--ink); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .card h2 { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
+  .card .hint { color: var(--muted); font-size: 12px; margin: 0 0 14px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+  .tile .label { color: var(--ink-2); font-size: 13px; }
+  .tile .value { font-size: 28px; font-weight: 600; margin-top: 4px; }
+  .tile .note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+
+  /* Horizontal bar rows: label | bar | value at the tip */
+  .bars { display: grid; gap: 8px; }
+  .bar-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 10px; padding: 2px 0; border-radius: 6px; }
+  .bar-row:hover { background: var(--hover); }
+  .bar-label { color: var(--ink-2); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { display: flex; align-items: center; gap: 8px; border-left: 1px solid var(--axis); min-height: 20px; }
+  .bar { height: 20px; background: var(--series); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .bar.empty { background: var(--empty-bar); }
+  .bar-value { font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar-value span { color: var(--muted); margin-left: 4px; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .filters input { flex: 1; min-width: 200px; }
+  .count { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  td { padding: 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--hover); }
+  td.num { font-variant-numeric: tabular-nums; }
+  .company { font-weight: 500; }
+  .domain { color: var(--muted); font-size: 12px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-2); font-size: 12px; white-space: nowrap; }
+  .score { display: flex; align-items: center; gap: 8px; }
+  .meter { width: 48px; height: 4px; border-radius: 2px; background: var(--track); overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--series); }
+  .dim { color: var(--muted); }
+  .empty-state { text-align: center; color: var(--muted); padding: 32px 0; }
+
+  .tooltip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); display: none; }
+  .tooltip b { font-weight: 600; }
+
+  dialog { border: 1px solid var(--border); border-radius: 14px; padding: 0; width: min(560px, calc(100vw - 32px)); background: var(--surface); color: var(--ink); }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+  .dlg-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--grid); }
+  .dlg-head h3 { margin: 0; font-size: 17px; }
+  .dlg-body { padding: 14px 18px 18px; display: grid; gap: 12px; }
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; word-break: break-word; }
+  .reason { background: var(--page); border-radius: 8px; padding: 10px 12px; color: var(--ink-2); font-size: 13px; }
+  a { color: var(--series); }
+
+  @media (max-width: 1000px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 860px) {
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) {
+    .bar-row { grid-template-columns: 84px 1fr; }
+    .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Lead pipeline</h1>
+      <div class="sub"><span class="status-dot" id="apiDot"></span><span id="subtitle">Connecting…</span></div>
+    </div>
+    <button id="refresh" type="button">Refresh</button>
+  </header>
+
+  <div class="banner" id="offline">
+    Can't reach the API. Start it with <code>python api.py</code>
+    (or <code>python seed_demo.py</code> then <code>python api.py --demo</code> for sample data).
+  </div>
+
+  <section class="tiles">
+    <div class="card tile"><div class="label">Total leads</div><div class="value" id="tTotal">–</div><div class="note">discovered so far</div></div>
+    <div class="card tile"><div class="label">Qualified</div><div class="value" id="tQualified">–</div><div class="note" id="tQualifiedNote">passed the AI fit gate</div></div>
+    <div class="card tile"><div class="label">Ready to send</div><div class="value" id="tReady">–</div><div class="note">drafted, not sent yet</div></div>
+    <div class="card tile"><div class="label">Sent</div><div class="value" id="tSent">–</div><div class="note" id="tSentNote">outreach delivered</div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h2>Pipeline funnel</h2>
+      <p class="hint">Leads that reached each stage</p>
+      <div class="bars" id="funnel"></div>
+    </div>
+    <div class="card">
+      <h2>Fit score</h2>
+      <p class="hint">AI qualification score, 0–100</p>
+      <div class="bars" id="scores"></div>
+    </div>
+    <div class="card">
+      <h2>Top sources</h2>
+      <p class="hint">Where leads were discovered</p>
+      <div class="bars" id="sources"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Leads</h2>
+    <p class="hint">Sorted by fit score. Click a row for details.</p>
+    <div class="filters">
+      <input id="q" type="search" placeholder="Search company, role or domain" aria-label="Search leads">
+      <select id="status" aria-label="Filter by status">
+        <option value="">All statuses</option>
+      </select>
+      <select id="minScore" aria-label="Minimum fit score">
+        <option value="">Any score</option>
+        <option value="50">50+</option>
+        <option value="70">70+</option>
+        <option value="85">85+</option>
+      </select>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th class="hide-sm">Role</th>
+            <th>Fit</th>
+            <th>Status</th>
+            <th class="hide-sm">Source</th>
+            <th class="hide-sm">Contact</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="tooltip" id="tip" role="tooltip"></div>
+
+<dialog id="detail" aria-labelledby="dTitle">
+  <div class="dlg-head">
+    <div><h3 id="dTitle"></h3><div class="domain" id="dSub"></div></div>
+    <button type="button" id="dClose" aria-label="Close">Close</button>
+  </div>
+  <div class="dlg-body" id="dBody"></div>
+</dialog>
+
+<script>
+const API = "";  // same origin as api.py
+const STATUS_LABELS = {
+  new: "New", qualified: "Qualified", enriched: "Enriched", drafted: "Drafted",
+  draft_created: "Gmail draft", sent: "Sent", applied: "Applied", replied: "Replied",
+  rejected: "Rejected", skipped: "Skipped", needs_review: "Needs review",
+};
+// Pipeline order; a lead "reached" every stage up to its current one.
+const STAGES = [
+  { label: "Discovered", statuses: null },
+  { label: "Qualified", statuses: ["qualified", "enriched", "drafted", "draft_created", "sent", "applied", "replied"] },
+  { label: "Enriched", statuses: ["enriched", "drafted", "draft_created", "sent", "applied", "replied"] },
+  { label: "Drafted", statuses: ["drafted", "draft_created", "sent", "applied", "replied"] },
+  { label: "Sent", statuses: ["sent", "applied", "replied"] },
+  { label: "Replied", statuses: ["replied"] },
+];
+const SCORE_BUCKETS = [
+  ["85-100", "85–100"], ["70-84", "70–84"], ["50-69", "50–69"], ["0-49", "0–49"], ["null", "Unscored"],
+];
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n || 0).toLocaleString();
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const safeUrl = (u) => (/^https?:\/\//i.test(u || "") ? u : null);
+const pct = (n, d) => (d ? Math.round((n / d) * 100) + "%" : "0%");
+
+async function getJSON(path) {
+  const res = await fetch(API + path, { cache: "no-store" });
+  if (!res.ok) throw new Error(res.status + " " + res.statusText);
+  return res.json();
+}
+
+function sumStatuses(byStatus, list) {
+  return list.reduce((acc, s) => acc + (byStatus[s] || 0), 0);
+}
+
+// rows: [{label, value, note?, empty?}]; bars scale to the largest value.
+function renderBars(el, rows, total) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  el.innerHTML = rows.map((r, i) => `
+    <div class="bar-row" data-i="${i}">
+      <div class="bar-label" title="${esc(r.label)}">${esc(r.label)}</div>
+      <div class="bar-track">
+        <div class="bar${r.empty ? " empty" : ""}" style="width:${r.value ? Math.max(1, (r.value / max) * 82) : 0}%"></div>
+        <div class="bar-value">${fmt(r.value)}${total ? `<span>${pct(r.value, total)}</span>` : ""}</div>
+      </div>
+    </div>`).join("");
+  el.querySelectorAll(".bar-row").forEach((row) => {
+    const r = rows[Number(row.dataset.i)];
+    const text = `<b>${esc(r.label)}</b> · ${fmt(r.value)} lead${r.value === 1 ? "" : "s"}` + (total ? ` · ${pct(r.value, total)} of ${fmt(total)}` : "");
+    row.addEventListener("mousemove", (e) => showTip(e, text));
+    row.addEventListener("mouseleave", hideTip);
+  });
+}
+
+const tip = $("tip");
+function showTip(e, html) {
+  tip.innerHTML = html;
+  tip.style.display = "block";
+  const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+  tip.style.left = x + "px";
+  tip.style.top = e.clientY + 14 + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+
+function renderStats(s) {
+  const by = s.by_status || {};
+  const total = s.total || 0;
+  const qualified = sumStatuses(by, STAGES[1].statuses);
+  const scored = total - ((s.score_distribution || {}).null || 0);
+  const ready = sumStatuses(by, ["drafted", "draft_created"]);
+  const sent = sumStatuses(by, ["sent", "applied", "replied"]);
+
+  $("tTotal").textContent = fmt(total);
+  $("tQualified").textContent = fmt(qualified);
+  $("tQualifiedNote").textContent = scored ? `${pct(qualified, scored)} of scored leads` : "passed the AI fit gate";
+  $("tReady").textContent = fmt(ready);
+  $("tSent").textContent = fmt(sent);
+  $("tSentNote").textContent = `${fmt(by.replied || 0)} replied`;
+  $("subtitle").textContent = `${fmt(total)} leads tracked · updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+
+  renderBars($("funnel"), STAGES.map((st) => ({
+    label: st.label,
+    value: st.statuses ? sumStatuses(by, st.statuses) : total,
+  })), total);
+
+  const dist = s.score_distribution || {};
+  renderBars($("scores"), SCORE_BUCKETS.map(([k, label]) => ({
+    label, value: dist[k] || 0, empty: k === "null",
+  })), total);
+
+  const src = Object.entries(s.by_source || {}).slice(0, 6);
+  renderBars($("sources"), src.length ? src.map(([label, value]) => ({ label, value })) : [{ label: "No data", value: 0 }], total);
+
+  // Status filter lists only statuses that exist.
+  const sel = $("status");
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All statuses</option>' + Object.keys(STATUS_LABELS)
+    .filter((k) => by[k])
+    .map((k) => `<option value="${k}">${STATUS_LABELS[k]} (${fmt(by[k])})</option>`).join("");
+  sel.value = by[current] ? current : "";
+}
+
+function scoreCell(score) {
+  if (score === null || score === undefined) return '<span class="dim">–</span>';
+  return `<div class="score"><span>${score}</span><div class="meter" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, score))}%"></i></div></div>`;
+}
+
+function renderLeads(items, total) {
+  const rows = $("rows");
+  if (!items.length) {
+    rows.innerHTML = '<tr><td colspan="6" class="empty-state">No leads match these filters.</td></tr>';
+  } else {
+    rows.innerHTML = items.map((l) => `
+      <tr data-id="${l.id}" tabindex="0">
+        <td><div class="company">${esc(l.company)}</div><div class="domain">${esc(l.company_domain || "")}</div></td>
+        <td class="hide-sm">${esc(l.role_title || "–")}</td>
+        <td class="num">${scoreCell(l.fit_score)}</td>
+        <td><span class="pill">${esc(STATUS_LABELS[l.status] || l.status)}</span></td>
+        <td class="hide-sm">${esc(l.source || "–")}</td>
+        <td class="hide-sm">${l.contact_name ? esc(l.contact_name) + (l.email ? '<div class="domain">' + esc(l.email) + "</div>" : "") : '<span class="dim">–</span>'}</td>
+      </tr>`).join("");
+  }
+  $("count").textContent = `Showing ${fmt(items.length)} of ${fmt(total)}`;
+}
+
+let statsTotal = 0;
+async function loadStats() {
+  const s = await getJSON("/api/stats");
+  statsTotal = s.total || 0;
+  renderStats(s);
+}
+
+async function loadLeads() {
+  const p = new URLSearchParams({ limit: "500" });
+  if ($("q").value.trim()) p.set("search_query", $("q").value.trim());
+  if ($("status").value) p.set("status", $("status").value);
+  if ($("minScore").value) p.set("min_score", $("minScore").value);
+  const res = await getJSON("/api/leads?" + p);
+  renderLeads(res.items || [], statsTotal);
+}
+
+async function refresh() {
+  try {
+    await loadStats();
+    await loadLeads();
+    $("apiDot").className = "status-dot ok";
+    $("offline").classList.remove("show");
+  } catch (e) {
+    $("apiDot").className = "status-dot down";
+    $("subtitle").textContent = "API offline";
+    $("offline").classList.add("show");
+  }
+}
+
+async function openLead(id) {
+  const dlg = $("detail");
+  $("dTitle").textContent = "Loading…";
+  $("dSub").textContent = "";
+  $("dBody").innerHTML = "";
+  dlg.showModal();
+  try {
+    const l = await getJSON("/api/leads/" + id);
+    $("dTitle").textContent = l.company;
+    $("dSub").textContent = [l.role_title, l.company_domain].filter(Boolean).join(" · ");
+    const link = (u, text) => (safeUrl(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>` : null);
+    const links = [link(l.job_url, "Job posting"), link(l.linkedin_url || l.linkedin_company_url, "LinkedIn"), link(l.x_url, "X"), link(l.news_url, "News")].filter(Boolean);
+    const fields = [
+      ["Status", STATUS_LABELS[l.status] || l.status],
+      ["Fit score", l.fit_score ?? "Not scored yet"],
+      ["Funding", [l.funding_stage, l.funding_info].filter(Boolean).join(" · ")],
+      ["Region", l.region],
+      ["Employees", l.employee_count],
+      ["Source", l.source],
+      ["Contact", [l.contact_name, l.contact_title].filter(Boolean).join(", ")],
+      ["Email", l.email ? `${l.email}${l.email_confidence ? " (" + l.email_confidence + ")" : ""}` : null],
+    ].filter(([, v]) => v !== null && v !== undefined && v !== "");
+    $("dBody").innerHTML =
+      (l.fit_reason ? `<div class="reason">${esc(l.fit_reason)}</div>` : "") +
+      `<dl class="kv">${fields.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}` +
+      (links.length ? `<dt>Links</dt><dd>${links.join(" · ")}</dd>` : "") + `</dl>`;
+  } catch (e) {
+    $("dTitle").textContent = "Couldn't load this lead";
+  }
+}
+
+$("rows").addEventListener("click", (e) => {
+  const tr = e.target.closest("tr[data-id]");
+  if (tr) openLead(tr.dataset.id);
+});
+$("rows").addEventListener("keydown", (e) => {
+  const tr = e.target.closest("tr[data-id]");
+  if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openLead(tr.dataset.id); }
+});
+$("dClose").addEventListener("click", () => $("detail").close());
+$("detail").addEventListener("click", (e) => { if (e.target === $("detail")) $("detail").close(); });
+$("refresh").addEventListener("click", refresh);
+
+let debounce;
+$("q").addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(() => loadLeads().catch(() => {}), 300); });
+$("status").addEventListener("change", () => loadLeads().catch(() => {}));
+$("minScore").addEventListener("change", () => loadLeads().catch(() => {}));
+
+refresh();
+</script>
+</body>
+</html>

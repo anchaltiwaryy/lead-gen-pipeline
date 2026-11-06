@@ -2,8 +2,10 @@
 
 Run with:
     python api.py            # uvicorn on 0.0.0.0:8000
+    python api.py --demo     # same, but on demo.db (see seed_demo.py)
 
 Endpoints:
+    GET  /                             simple dashboard (web/index.html)
     GET  /api/leads                    filterable lead board
     GET  /api/leads/{id}               full lead detail
     POST /api/leads/{id}/status        transition status
@@ -16,11 +18,17 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import sys
+
+# `--demo` must switch the DB before config.py reads DB_PATH on import.
+if __name__ == "__main__" and "--demo" in sys.argv:
+    os.environ["DB_PATH"] = "demo.db"
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from db import get_conn, get_lead, query_leads, funnel_stats, update_lead
@@ -221,6 +229,17 @@ def health():
     return {"status": "ok", "version": "2.0.0"}
 
 
+# --- Simple dashboard -----------------------------------------------------
+
+DASHBOARD_HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "index.html")
+
+
+@app.get("/", include_in_schema=False)
+def dashboard():
+    return FileResponse(DASHBOARD_HTML, media_type="text/html")
+
+
 if __name__ == "__main__":
-    log.info("Starting Lead Intelligence Engine API on http://0.0.0.0:8000")
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=False)
+    from config import DB_PATH
+    log.info(f"Starting Lead Intelligence Engine API on http://localhost:8000 (db: {DB_PATH})")
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
