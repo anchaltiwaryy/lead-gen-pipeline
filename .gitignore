@@ -1,0 +1,52 @@
+# Virtual environment (thousands of package files)
+venv/
+env/
+ENV/
+.venv/
+
+# Backup repositories & temporary files
+.git_backup_original/
+.git_backup*/
+scratch/
+
+# Python cache & build files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Secrets, tokens & environment files
+.env
+*.env
+credentials.json
+token.json
+sheets_token.json
+wellfound_session.json
+*.session.json
+
+# Local databases, lead exports & logs
+*.db
+*.sqlite
+*.sqlite3
+leads.db
+leads.db-shm
+leads.db-wal
+leads_export.csv
+drafts/
+exports/
+*.log
+crawl*.log
+stage_scrape*.log
+linkedin_context_export.txt
+
+# Personal PDFs & JSON profiles
+Resume_*.pdf
+resume_profile*.json
+
+# Node / Next.js dashboard build output
+dashboard/node_modules/
+dashboard/.next/
+dashboard/out/
+dashboard/next-env.d.ts
+npm-debug.log*
